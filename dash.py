@@ -82,13 +82,37 @@ class Contestant(object):
         contestant.completedProblems = completedCount
         cls.add_to_cache(contestant)
 
+def update_last_cmd(f):
+    def decorated(self,line):
+        rv = f(self,line)
+        self.lastCommand = f.__name__
+        return rv
+    return decorated
 
 class Dashboard(cmd.Cmd):
     def __init__(self, rosterfile):
         cmd.Cmd.__init__(self)
         self.prompt = "dash> "
         self.rosterFilePath = rosterfile
+        self.lastCommand = ""
+        self.lastResult = ""
 
+    @update_last_cmd
+    def do_qd(self, line):
+        """Disregard the competitor printed in the previous "queryone" result"""
+        if self.lastCommand == "do_queryone":
+            self.do_disregard(self.lastResult)
+        else:
+            print("Cannot perform qd when last command not queryone")
+
+    def do_qb(self, line):
+        """Balloon the competitor printed in the previous "queryone" result"""
+        if self.lastCommand == "do_queryone":
+            self.do_balloon(self.lastResult)
+        else:
+            print("Cannot perform qb when last command not queryone")
+
+    @update_last_cmd
     def do_load(self, line):
         """ Loads the provided roster file into memory. """
         with open(self.rosterFilePath, 'r') as csvFile:
@@ -106,6 +130,7 @@ class Dashboard(cmd.Cmd):
                 except Exception as e:
                     continue
 
+    @update_last_cmd
     def do_list(self, line):
         """ Lists all contestants if none specified. Contestants to explicitly
         list can be passed via "list [contestantHackerrank] [contestantHackerrank] """
@@ -119,6 +144,7 @@ class Dashboard(cmd.Cmd):
                 except Exception:
                     print('Invalid Username: {}'.format(hrUser))
 
+    @update_last_cmd
     def do_move(self, line):
         """ Moves the team number for the specified username to the specified number.
         Example: "move <username> 20" """
@@ -133,6 +159,7 @@ class Dashboard(cmd.Cmd):
             print("Cannot move contestant - {} already sitting there".format(
                 e.collidesWith))
 
+    @update_last_cmd
     def do_update(self, line):
         """ Spawns a hackerrank scraper to update all contestants """
         scr = Scraper()
@@ -145,6 +172,7 @@ class Dashboard(cmd.Cmd):
                     print("ERR: Username most likely not found in spreadsheet {}. {}".format(
                         competitor.username, str(e)))
 
+    @update_last_cmd
     def do_query(self, line):
         """ Lists the competitors who have not received a balloon for their 
         completed problems. Contestants to explicitly list can be passed via
@@ -166,6 +194,7 @@ class Dashboard(cmd.Cmd):
                 except Exception:
                     print('Invalid Username: {}'.format(hrUser))
 
+    @update_last_cmd
     def do_queryone(self, line):
         """ Lists a single competitor who has not received a balloon for their
         completed problems """
@@ -175,8 +204,10 @@ class Dashboard(cmd.Cmd):
                     print("{} (Team {}) has completed {} problems. Last balloon given at {} problems.".format(
                         contestant.hackerRank, contestant.team, contestant.completedProblems,
                         contestant.lastBalloon))
-                    return
+                    self.lastResult = contestant.hackerRank
+                    break
 
+    @update_last_cmd
     def do_disregard(self, line):
         """ Disregards the current contestant until they've completed an
         additional problem """
@@ -187,6 +218,7 @@ class Dashboard(cmd.Cmd):
         except Exception:
             print("Invalid Username: {}".format(line))
 
+    @update_last_cmd
     def do_balloon(self, line):
         """ Declares that the provided contestant has had their balloon status
         updated """
@@ -197,6 +229,7 @@ class Dashboard(cmd.Cmd):
         except Exception:
             print("Invalid Username: {}".format(line))
 
+    @update_last_cmd
     def do_save(self, line):
         """ Saves the current information into a local file. The dash session
         can then be reopened by using the local file as a commandline arg """
@@ -206,6 +239,7 @@ class Dashboard(cmd.Cmd):
             for contestant in Contestant.get_all_contestants_iter():
                 writer.writerow(contestant.get_dict())
 
+    @update_last_cmd
     def do_EOF(self, line):
         """ Quit """
         return True

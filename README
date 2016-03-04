@@ -1,1 +1,11 @@
+balloon-dash
+============
 A dashboard for managing the distribution of balloons during WIC's BPC
+
+
+This dashboard operates on the principle that it will be attached to a CSV file
+containing contestant information. The dashboard will then allow the user to
+interact with the contestant information.
+
+Most importantly, the dashboard allows the contestant information to be updated
+with information found from Hackerrank leaderboards.
