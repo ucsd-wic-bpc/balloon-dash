@@ -213,11 +213,23 @@ class Dashboard(cmd.Cmd):
 if __name__ == '__main__':
 
     intro =  """
-    ############################################################################
-    # University of California, San Diego
-    # Women in Computing, Beginners' Programming Competition
-    # Balloon Dash
-    # https://github.com/ucsd-wic-bpc/balloon-dash
-    ############################################################################
-    """
+############################################################################
+# University of California, San Diego
+# Women in Computing, Beginners' Programming Competition
+# Balloon Dash
+# https://github.com/ucsd-wic-bpc/balloon-dash
+# 03 March 2016
+############################################################################
+
+██╗    ██╗██╗ ██████╗              ██████╗ ██████╗  ██████╗
+██║    ██║██║██╔════╝              ██╔══██╗██╔══██╗██╔════╝
+██║ █╗ ██║██║██║         █████╗    ██████╔╝██████╔╝██║     
+██║███╗██║██║██║         ╚════╝    ██╔══██╗██╔═══╝ ██║     
+╚███╔███╔╝██║╚██████╗              ██████╔╝██║     ╚██████╗
+ ╚══╝╚══╝ ╚═╝ ╚═════╝              ╚═════╝ ╚═╝      ╚═════╝
+                                              
+
+Please remember to frequently save your data. Type "help" or "?" for info
+	    """
+    if len(sys.argv) < 2: sys.argv.append("")
     Dashboard(sys.argv[1]).cmdloop(intro)
