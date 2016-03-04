@@ -87,6 +87,7 @@ def update_last_cmd(f):
         rv = f(self,line)
         self.lastCommand = f.__name__
         return rv
+    decorated.__doc__ = f.__doc__
     return decorated
 
 class Dashboard(cmd.Cmd):
@@ -105,6 +106,7 @@ class Dashboard(cmd.Cmd):
         else:
             print("Cannot perform qd when last command not queryone")
 
+    @update_last_cmd
     def do_qb(self, line):
         """Balloon the competitor printed in the previous "queryone" result"""
         if self.lastCommand == "do_queryone":
