@@ -1,6 +1,9 @@
 from scraper import Scraper
 import csv, fileinput, cmd,sys
+import threading, time
 
+
+backgroundUpdate = True
 class Contestant(object):
     contestantCache = {}
 
@@ -77,6 +80,20 @@ class Contestant(object):
             cls.add_to_cache(contestant)
 
     @classmethod
+    def rename_team(cls, username, newUsername):
+        try:
+            currentResident = cls.get_from_cache(newUsername)
+            raise cls.MoveException(newUsername)
+        except KeyError:
+            try:
+                contestant = cls.get_from_cache(username)
+                contestant.hackerRank = newUsername
+                cls.add_to_cache(contestant)
+                del cls.contestantCache[username]
+            except KeyError:
+                raise KeyError from None
+
+    @classmethod
     def update_completed_count(cls, username, completedCount):
         contestant = cls.get_from_cache(username)
         contestant.completedProblems = completedCount
@@ -89,6 +106,21 @@ def update_last_cmd(f):
         return rv
     decorated.__doc__ = f.__doc__
     return decorated
+
+def update():
+    global backgroundUpdate
+    while backgroundUpdate:
+        scr = Scraper()
+        for competitorListChunk in scr.scrape():
+            for competitor in competitorListChunk:
+                try:
+                    Contestant.update_completed_count(competitor.username.lower(),
+                        competitor.completedCount)
+                except Exception as e:
+                    print("ERR: Username most likely not found in spreadsheet {}. {}".format(
+                        competitor.username, str(e)))
+        time.sleep(10)
+
 
 class Dashboard(cmd.Cmd):
     def __init__(self, rosterfile):
@@ -124,7 +156,7 @@ class Dashboard(cmd.Cmd):
                 completedProblems = row['completedProblems'] if 'completedProblems' in row else 0
                 lastBalloon = row['lastBalloon'] if 'lastBalloon' in row else 0
                 contestant = Contestant(row['Room #'], row['Team #'],
-                        row['Check-In'], row['HackerRank'], 
+                        row['Check-In'], row['HackerRank'].lower(), 
                         row['Partner 1 Name'], row['Partner 2 Name'], 
                         completedProblems, lastBalloon, disregardedAt)
                 try: 
@@ -162,17 +194,51 @@ class Dashboard(cmd.Cmd):
                 e.collidesWith))
 
     @update_last_cmd
+    def do_rename(self, line):
+        """ Renames the team from the first username to the second """
+        try:
+            contestant = Contestant.get_from_cache(line.split(' ')[0])
+        except Exception:
+            print('Invalid Username: {}'.format(line.split(' ')[0]))
+            return
+
+        try:
+            Contestant.rename_team(line.split(' ')[0], line.split(' ')[1])
+        except Contestant.MoveException as e:
+            print("Cannot rename contestant - {} already named this".format(
+                e.collidesWith))
+        except ValueError:
+            print("Invalid User: {}".format(line.split(' ')[0]))
+        except KeyError: 
+            print("Invalid User: {}".format(line.split(' ')[0]))
+
+    @update_last_cmd
     def do_update(self, line):
         """ Spawns a hackerrank scraper to update all contestants """
         scr = Scraper()
         for competitorListChunk in scr.scrape():
             for competitor in competitorListChunk:
                 try:
-                    Contestant.update_completed_count(competitor.username,
+                    Contestant.update_completed_count(competitor.username.lower(),
                         competitor.completedCount)
                 except Exception as e:
                     print("ERR: Username most likely not found in spreadsheet {}. {}".format(
                         competitor.username, str(e)))
+
+    @update_last_cmd
+    def do_updateback(self,line):
+        """ Issues updating in the background. WARNING: Opens a new web browser
+        instance for every iteration """
+        global backgroundUpdate
+        backgroundUpdate = True
+        s = threading.Thread(target=update)
+        s.start()
+
+    @update_last_cmd
+    def do_stopupdateback(self,line):
+        """ Stop any background udpating """
+        global backgroundUpdate
+        backgroundUpdate = False
 
     @update_last_cmd
     def do_query(self, line):
