@@ -2,8 +2,8 @@ from scraper import Scraper
 import csv, fileinput, cmd,sys
 import threading, time
 
-
 backgroundUpdate = True
+
 class Contestant(object):
     contestantCache = {}
 
@@ -39,6 +39,10 @@ class Contestant(object):
     def __str__(self):
         return "{}: Room {}, team {}. Completed {} problems".format(self.hackerRank,
                 self.room, self.team, self.completedProblems)
+
+    @classmethod
+    def get_contestant_count(cls):
+        return len(cls.contestantCache)
 
     @classmethod
     def get_fieldnames(cls):
@@ -99,7 +103,29 @@ class Contestant(object):
         contestant.completedProblems = completedCount
         cls.add_to_cache(contestant)
 
+
+def performUpdate():
+    scr = Scraper()
+    for competitorListChunk in scr.scrape():
+        for competitor in competitorListChunk:
+            try:
+                Contestant.update_completed_count(competitor.username.lower(),
+                    competitor.completedCount)
+            except Exception as e:
+                print("ERR: Username most likely not found in spreadsheet {}. {}".format(
+                    competitor.username, str(e)))
+
+def update(parallel):
+    if parallel:
+        global backgroundUpdate
+        while backgroundUpdate:
+            performUpdate()
+            time.sleep(10)
+    else: performUpdate()
+
 def update_last_cmd(f):
+    """ A decorator that makes a Cmd command write its name to the Cmd command
+    history """
     def decorated(self,line):
         rv = f(self,line)
         self.lastCommand = f.__name__
@@ -107,20 +133,22 @@ def update_last_cmd(f):
     decorated.__doc__ = f.__doc__
     return decorated
 
-def update():
-    global backgroundUpdate
-    while backgroundUpdate:
-        scr = Scraper()
-        for competitorListChunk in scr.scrape():
-            for competitor in competitorListChunk:
-                try:
-                    Contestant.update_completed_count(competitor.username.lower(),
-                        competitor.completedCount)
-                except Exception as e:
-                    print("ERR: Username most likely not found in spreadsheet {}. {}".format(
-                        competitor.username, str(e)))
-        time.sleep(10)
-
+def query_contestants(numContestants, printQuery=True, contestantList=None, check=True):
+    iters = 0
+    iteratingItem = contestantList if not contestantList is None else Contestant.get_all_contestants_iter()
+    lastContestant = None
+    for contestant in iteratingItem:
+        if iters >= numContestants:
+            return lastContestant
+        if (check and (not contestant.lastBalloon == contestant.completedProblems) and (
+            not contestant.disregardedAt == contestant.completedProblems)) or not check:
+            if printQuery:
+                print("{} (Team {}) has completed {} problems. Last balloon given at {} problems.".format(
+                    contestant.hackerRank, contestant.team, contestant.completedProblems,
+                    contestant.lastBalloon))
+            lastContestant = contestant
+            iters += 1
+    return None
 
 class Dashboard(cmd.Cmd):
     def __init__(self, rosterfile):
@@ -134,7 +162,8 @@ class Dashboard(cmd.Cmd):
     def do_qd(self, line):
         """Disregard the competitor printed in the previous "queryone" result"""
         if self.lastCommand == "do_queryone":
-            self.do_disregard(self.lastResult)
+            if not self.lastResult is None:
+                self.do_disregard(self.lastResult.hackerRank)
         else:
             print("Cannot perform qd when last command not queryone")
 
@@ -142,7 +171,8 @@ class Dashboard(cmd.Cmd):
     def do_qb(self, line):
         """Balloon the competitor printed in the previous "queryone" result"""
         if self.lastCommand == "do_queryone":
-            self.do_balloon(self.lastResult)
+            if not self.lastResult is None:
+                self.do_balloon(self.lastResult.hackerRank)
         else:
             print("Cannot perform qb when last command not queryone")
 
@@ -215,15 +245,7 @@ class Dashboard(cmd.Cmd):
     @update_last_cmd
     def do_update(self, line):
         """ Spawns a hackerrank scraper to update all contestants """
-        scr = Scraper()
-        for competitorListChunk in scr.scrape():
-            for competitor in competitorListChunk:
-                try:
-                    Contestant.update_completed_count(competitor.username.lower(),
-                        competitor.completedCount)
-                except Exception as e:
-                    print("ERR: Username most likely not found in spreadsheet {}. {}".format(
-                        competitor.username, str(e)))
+        update(False)
 
     @update_last_cmd
     def do_updateback(self,line):
@@ -231,7 +253,8 @@ class Dashboard(cmd.Cmd):
         instance for every iteration """
         global backgroundUpdate
         backgroundUpdate = True
-        s = threading.Thread(target=update)
+        def update_parallel(): update(True)
+        s = threading.Thread(target=update_parallel)
         s.start()
 
     @update_last_cmd
@@ -246,34 +269,24 @@ class Dashboard(cmd.Cmd):
         completed problems. Contestants to explicitly list can be passed via
         "query [contestantHackerrank] [contestantHackerrank]" """
         if line == "":
-            for contestant in Contestant.get_all_contestants_iter():
-                if not contestant.lastBalloon == contestant.completedProblems:
-                    if not contestant.disregardedAt == contestant.completedProblems:
-                        print("{} (Team {}) has completed {} problems. Last balloon given at {} problems.".format(
-                            contestant.hackerRank, contestant.team, contestant.completedProblems,
-                            contestant.lastBalloon))
+            query_contestants(Contestant.get_contestant_count())
         else:
+            contestantList = []
             for hrUser in line.split(' '):
                 try: 
                     contestant = Contestant.get_from_cache(hrUser)
-                    print("{} (Team {}) has completed {} problems. Last balloon given at {} problems.".format(
-                    contestant.hackerRank, contestant.team, contestant.completedProblems,
-                    contestant.lastBalloon))
+                    contestantList.append(contestant)
                 except Exception:
                     print('Invalid Username: {}'.format(hrUser))
+
+            query_contestants(len(contestantList), contestantList = contestantList, check=False)
 
     @update_last_cmd
     def do_queryone(self, line):
         """ Lists a single competitor who has not received a balloon for their
         completed problems """
-        for contestant in Contestant.get_all_contestants_iter():
-            if not contestant.lastBalloon == contestant.completedProblems:
-                if not contestant.disregardedAt == contestant.completedProblems:
-                    print("{} (Team {}) has completed {} problems. Last balloon given at {} problems.".format(
-                        contestant.hackerRank, contestant.team, contestant.completedProblems,
-                        contestant.lastBalloon))
-                    self.lastResult = contestant.hackerRank
-                    break
+        queried = query_contestants(1)
+        self.lastResult = queried
 
     @update_last_cmd
     def do_disregard(self, line):
@@ -311,6 +324,7 @@ class Dashboard(cmd.Cmd):
     def do_EOF(self, line):
         """ Quit """
         return True
+
 
 if __name__ == '__main__':
 
