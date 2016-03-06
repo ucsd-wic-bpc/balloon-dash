@@ -106,14 +106,17 @@ class Contestant(object):
 
 def performUpdate():
     scr = Scraper()
-    for competitorListChunk in scr.scrape():
-        for competitor in competitorListChunk:
-            try:
-                Contestant.update_completed_count(competitor.username.lower(),
-                    competitor.completedCount)
-            except Exception as e:
-                print("ERR: Username most likely not found in spreadsheet {}. {}".format(
-                    competitor.username, str(e)))
+    try: 
+        for competitorListChunk in scr.scrape():
+            for competitor in competitorListChunk:
+                try:
+                    Contestant.update_completed_count(competitor.username.lower(),
+                        competitor.completedCount)
+                except Exception as e:
+                    print("ERR: Username most likely not found in spreadsheet {}. {}".format(
+                        competitor.username, str(e)))
+    except Exception:
+        return
 
 def update(parallel):
     if parallel:
