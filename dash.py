@@ -146,8 +146,8 @@ def query_contestants(numContestants, printQuery=True, contestantList=None, chec
         if (check and (not contestant.lastBalloon == contestant.completedProblems) and (
             not contestant.disregardedAt == contestant.completedProblems)) or not check:
             if printQuery:
-                print("{} (Team {}) has completed {} problems. Last balloon given at {} problems.".format(
-                    contestant.hackerRank, contestant.team, contestant.completedProblems,
+                print("{} (Room {} Team {}) has completed {} problems. Last balloon given at {} problems.".format(
+                    contestant.hackerRank, contestant.room, contestant.team, contestant.completedProblems,
                     contestant.lastBalloon))
             lastContestant = contestant
             iters += 1
@@ -201,11 +201,15 @@ class Dashboard(cmd.Cmd):
     def do_list(self, line):
         """ Lists all contestants if none specified. Contestants to explicitly
         list can be passed via "list [contestantHackerrank] [contestantHackerrank] """
-        if line == "":
+        if line.split(' ')[0] == "":
             for contestant in Contestant.get_all_contestants_iter():
                 print(contestant)
+        elif line.split(' ')[0] == '*' and len(line.split(' ')) > 1:
+            for contestant in Contestant.get_all_contestants_iter():
+                if contestant.completedProblems == line.split(' ')[1]:
+                    print(contestant)
         else:
-            for hrUser in line.split(' '):
+            for hrUser in line.split(' ')[0]:
                 try:
                     print(Contestant.get_from_cache(hrUser))
                 except Exception:

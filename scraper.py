@@ -94,3 +94,4 @@ class Scraper:
             self.login(configDict['username'], configDict['password'])
         for list in self.load_leaderboard_pages(configDict['leaderboard_url']):
             yield list
+        self.driver.close()
