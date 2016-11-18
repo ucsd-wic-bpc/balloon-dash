@@ -9,3 +9,13 @@ interact with the contestant information.
 
 Most importantly, the dashboard allows the contestant information to be updated
 with information found from Hackerrank leaderboards.
+
+
+Quick-Start
+-----------
+1. Update the `config.json` file with the appropriate values
+2. `git clone https://github.com/ucsd-wic-bpc/balloon-dash`
+3. `cd balloon-dash`
+4. `pip install -r requirements.txt`
+5. `python dash.py`
+6. `updateback`

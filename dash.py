@@ -117,6 +117,14 @@ def performUpdate():
     except Exception:
         return
 
+def save_all():
+    with open('dash.save', 'w+') as csvfile:
+        writer = csv.DictWriter(csvfile, fieldnames=Contestant.get_fieldnames())
+        writer.writeheader()
+        for contestant in Contestant.get_all_contestants_iter():
+            writer.writerow(contestant.get_dict())
+
+
 def send_balloon_update(contestant, missing_balloons):
     global loaded_config
     api_url = loaded_config['api_url']
@@ -133,6 +141,7 @@ def update(parallel):
             performUpdate()
             for competitor, missing_balloons in get_needed_balloons_and_ack():
                 send_balloon_update(competitor, missing_balloons)
+                save_all()
             time.sleep(10)
     else: performUpdate()
 
@@ -329,11 +338,7 @@ class Dashboard(cmd.Cmd):
     def do_save(self, line):
         """ Saves the current information into a local file. The dash session
         can then be reopened by using the local file as a commandline arg """
-        with open('dash.save', 'w+') as csvfile:
-            writer = csv.DictWriter(csvfile, fieldnames=Contestant.get_fieldnames())
-            writer.writeheader()
-            for contestant in Contestant.get_all_contestants_iter():
-                writer.writerow(contestant.get_dict())
+        save_all()
 
     @update_last_cmd
     def do_EOF(self, line):
