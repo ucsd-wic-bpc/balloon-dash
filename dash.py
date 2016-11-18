@@ -1,8 +1,10 @@
 from scraper import Scraper
-import csv, fileinput, cmd,sys
+import csv, fileinput, cmd, sys, json, os
 import threading, time
+import urllib.request
 
 backgroundUpdate = True
+loaded_config = {}
 
 class Contestant(object):
     contestantCache = {}
@@ -12,7 +14,7 @@ class Contestant(object):
             self.collidesWith = collisionUsername
 
     def __init__(self, room, team, checkin, hackerrank, name1, name2,
-            completedProblems, lastBalloon, disregardedAt):
+            completedProblems, currentBalloons):
         self.room = room
         self.team = team
         self.checkin = checkin
@@ -20,8 +22,7 @@ class Contestant(object):
         self.partnerOne = name1
         self.partnerTwo = name2
         self.completedProblems = completedProblems
-        self.lastBalloon = lastBalloon
-        self.disregardedAt = disregardedAt
+        self.currentBalloons = currentBalloons
 
     def get_dict(self):
         return {
@@ -32,8 +33,7 @@ class Contestant(object):
                 'Partner 1 Name':self.partnerOne,
                 'Partner 2 Name':self.partnerTwo,
                 'completedProblems': self.completedProblems,
-                'lastBalloon': self.lastBalloon,
-                'disregardedAt':self.disregardedAt 
+                'currentBalloons': self.currentBalloons,
                 }
 
     def __str__(self):
@@ -47,8 +47,7 @@ class Contestant(object):
     @classmethod
     def get_fieldnames(cls):
         return ['Room #', 'Team #', 'Check-In', 'HackerRank', 'Partner 1 Name',
-                'Partner 2 Name', 'completedProblems', 'lastBalloon',
-                'disregardedAt']
+                'Partner 2 Name', 'completedProblems', 'currentBalloons']
 
     @classmethod
     def add_to_cache(cls, c):
@@ -118,11 +117,22 @@ def performUpdate():
     except Exception:
         return
 
+def send_balloon_update(contestant, missing_balloons):
+    global loaded_config
+    api_url = loaded_config['api_url']
+    push_url = os.path.join(api_url, 'balloonpush.php')
+    push_url = '{}?year=fa16&team={}&room={}&balloons={}'.format(
+        push_url, contestant.team, contestant.room, missing_balloons)
+    urllib.request.urlopen(push_url).read()
+
+    
 def update(parallel):
     if parallel:
         global backgroundUpdate
         while backgroundUpdate:
             performUpdate()
+            for competitor, missing_balloons in get_needed_balloons_and_ack():
+                send_balloon_update(competitor, missing_balloons)
             time.sleep(10)
     else: performUpdate()
 
@@ -136,6 +146,25 @@ def update_last_cmd(f):
     decorated.__doc__ = f.__doc__
     return decorated
 
+def get_missing_balloons(contestant):
+    global loaded_config
+    balloon_list = loaded_config['balloon_on']
+    needed_balloons = len([req for req in balloon_list if req <= contestant.completedProblems])
+    if contestant.currentBalloons < needed_balloons:
+        return needed_balloons - contestant.currentBalloons
+    else:
+        return 0
+
+def get_needed_balloons_and_ack(contestantList=None):
+    global loaded_config
+    contestantList = contestantList or Contestant.get_all_contestants_iter()
+    balloon_list = loaded_config['balloon_on']
+    for contestant in contestantList:
+        missing_balloons = get_missing_balloons(contestant)
+        if missing_balloons > 0:
+            yield (contestant, missing_balloons)
+            contestant.currentBalloons += missing_balloons
+
 def query_contestants(numContestants, printQuery=True, contestantList=None, check=True):
     iters = 0
     iteratingItem = contestantList if not contestantList is None else Contestant.get_all_contestants_iter()
@@ -143,12 +172,12 @@ def query_contestants(numContestants, printQuery=True, contestantList=None, chec
     for contestant in iteratingItem:
         if iters >= numContestants:
             return lastContestant
-        if (check and (not contestant.lastBalloon == contestant.completedProblems) and (
-            not contestant.disregardedAt == contestant.completedProblems)) or not check:
+        missing_balloons = get_missing_balloons(contestant)
+        if (check and missing_balloons != 0) or not check:
             if printQuery:
-                print("{} (Room {} Team {}) has completed {} problems. Last balloon given at {} problems.".format(
+                print("{} (Room {} Team {}) has completed {} problems. Missing {} balloons".format(
                     contestant.hackerRank, contestant.room, contestant.team, contestant.completedProblems,
-                    contestant.lastBalloon))
+                    missing_balloons))
             lastContestant = contestant
             iters += 1
     return None
@@ -160,15 +189,6 @@ class Dashboard(cmd.Cmd):
         self.rosterFilePath = rosterfile
         self.lastCommand = ""
         self.lastResult = ""
-
-    @update_last_cmd
-    def do_qd(self, line):
-        """Disregard the competitor printed in the previous "queryone" result"""
-        if self.lastCommand == "do_queryone":
-            if not self.lastResult is None:
-                self.do_disregard(self.lastResult.hackerRank)
-        else:
-            print("Cannot perform qd when last command not queryone")
 
     @update_last_cmd
     def do_qb(self, line):
@@ -185,13 +205,12 @@ class Dashboard(cmd.Cmd):
         with open(self.rosterFilePath, 'r') as csvFile:
             rosterReader = csv.DictReader(csvFile)
             for row in rosterReader:
-                disregardedAt = row['disregardedAt'] if 'disregardedAt' in row else 0
                 completedProblems = row['completedProblems'] if 'completedProblems' in row else 0
-                lastBalloon = row['lastBalloon'] if 'lastBalloon' in row else 0
+                currentBalloons = row['currentBalloons'] if 'currentBalloons' in row else 0
                 contestant = Contestant(row['Room #'], row['Team #'],
                         row['Check-In'], row['HackerRank'].lower(), 
                         row['Partner 1 Name'], row['Partner 2 Name'], 
-                        completedProblems, lastBalloon, disregardedAt)
+                        completedProblems, currentBalloons)
                 try: 
                     Contestant.add_to_cache(contestant)
                 except Exception as e:
@@ -296,23 +315,12 @@ class Dashboard(cmd.Cmd):
         self.lastResult = queried
 
     @update_last_cmd
-    def do_disregard(self, line):
-        """ Disregards the current contestant until they've completed an
-        additional problem """
-        try:
-            contestant = Contestant.get_from_cache(line)
-            contestant.disregardedAt = contestant.completedProblems
-            Contestant.add_to_cache(contestant)
-        except Exception:
-            print("Invalid Username: {}".format(line))
-
-    @update_last_cmd
     def do_balloon(self, line):
         """ Declares that the provided contestant has had their balloon status
         updated """
         try:
             contestant = Contestant.get_from_cache(line)
-            contestant.lastBalloon = contestant.completedProblems
+            contestant.currentBalloons += 1
             Contestant.add_to_cache(contestant)
         except Exception:
             print("Invalid Username: {}".format(line))
@@ -354,5 +362,8 @@ if __name__ == '__main__':
 
 Please remember to frequently save your data. Type "help" or "?" for info
 	    """
+    with open('config.json', 'r') as configFile:
+        loaded_config = json.loads(configFile.read())
+
     if len(sys.argv) < 2: sys.argv.append("")
     Dashboard(sys.argv[1]).cmdloop(intro)
