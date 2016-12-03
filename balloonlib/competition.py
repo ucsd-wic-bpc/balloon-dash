@@ -17,7 +17,8 @@ class Competition(object):
         self.configuration = competition_config
 
     def refresh_contestants_completed(self):
-        for username, completed_problems in self.stat_proxy.get_stats():
+        for updated_stats in self.stat_proxy.iterate_updated_contestant_data():
+            username, position, completed_problems = updated_stats
             contestant = self.contestants[username]
             contestant.completed_problems = completed_problems
 
