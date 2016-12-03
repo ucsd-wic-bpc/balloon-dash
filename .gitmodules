@@ -1,3 +1,3 @@
-[submodule "hackerrank-scraper"]
-	path = hackerrank-scraper
+[submodule "balloonlib/hackerrank_scraper"]
+	path = balloonlib/hackerrank_scraper
 	url = https://github.com/ucsd-wic-bpc/hackerrank-scraper
