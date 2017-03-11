@@ -15,12 +15,22 @@ class Competition(object):
         self.contestants = contestant_collection
         self.stat_proxy = stat_proxy
         self.configuration = competition_config
+        self.balloon_generator = None
 
     def refresh_contestants_completed(self):
+        bad_usernames = []
         for updated_stats in self.stat_proxy.iterate_updated_contestant_data():
             username, position, completed_problems = updated_stats
+            username = username.lower()
+
+            if not username in self.contestants:
+                bad_usernames.append(username)
+                continue
+
             contestant = self.contestants[username]
             contestant.completed_problems = completed_problems
+
+        return bad_usernames
 
     def get_needed_balloon_count_for_contestant(self, contestant):
         balloon_problem_counts = self.configuration.balloon_problem_counts
@@ -36,3 +46,13 @@ class Competition(object):
         for _, contestant in self.contestants.items():
            yield (contestant, 
                   self.get_needed_balloon_count_for_contestant(contestant))
+
+    def get_next_needed_balloon(self):
+        if self.balloon_generator is None:
+            self.balloon_generator = self.iterate_needed_ballons()
+
+        try:
+            return self.balloon_generator.next()
+        except StopIteration:
+            self.balloon_generator = None
+            return None, None

@@ -1,4 +1,4 @@
-from scraper import Scraper
+from hackerrank_scraper.scraper import Scraper
 import csv, fileinput, cmd, sys, json, os
 import threading, time
 import urllib.request

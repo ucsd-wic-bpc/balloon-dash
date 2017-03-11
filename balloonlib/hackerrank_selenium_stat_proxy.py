@@ -22,5 +22,5 @@ class HackerrankSeleniumStatProxy(object):
 
     def iterate_updated_contestant_data(self):
         for competitor in self.scraper.scrape(auto_login=True):
-            yield (cometitor.username, competitor.position, 
+            yield (competitor.username, competitor.position, 
                    competitor.completedCount)

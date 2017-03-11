@@ -1,1 +1,5 @@
-hackerrank-scraper/config.json
+{
+  "balloon_problem_counts": [],
+  "leaderboard_url": "",
+  "hackerrank_username": ""
+}
