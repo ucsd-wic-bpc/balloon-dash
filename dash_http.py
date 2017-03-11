@@ -106,6 +106,10 @@ def update_post(stub):
 
     categories = json.loads(request.form['categories'])
     tags = json.loads(request.form['tags'])
+    for username in tags:
+        if not isinstance(tags[username], list):
+            tags[username] = [tags[username]]
+
 
     try:
         competition_server_transport.open()

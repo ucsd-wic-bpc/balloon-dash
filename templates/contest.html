@@ -44,6 +44,21 @@ function makeButtonFromUser(user, button) {
   if (existing_button.parentNode.id != user_category) {
     existing_button.parentNode.removeChild(existing_button);
     var correctDiv = document.getElementById(user_category);
+
+    if (correctDiv == null) {
+      correctDiv = document.createElement("div");
+      correctDiv.id = user_category;
+
+      var divhead = document.createElement("h1");
+      var divheadcontents = document.createTextNode(user_category);
+      divhead.appendChild(divheadcontents);
+      correctDiv.appendChild(divhead);
+      correctDiv.appendChild(document.createElement("br"));
+
+      document.getElementById("content").appendChild(correctDiv);
+      document.getElementById("content").appendChild(document.createElement("br"));
+    }
+
     correctDiv.appendChild(existing_button);
   }
 }

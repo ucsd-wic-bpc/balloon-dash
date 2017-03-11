@@ -108,14 +108,16 @@ class CompetitionServerHandler(object):
             raise NotWatchingCompetitionException(stub=stub)
 
         for username, category in categories.items():
-            self.alerts[stub].users[username].category = category
+            if username in self.alerts[stub].users:
+                self.alerts[stub].users[username].category = category
 
     def updateTags(self, stub, tags):
         if stub not in self.competitions:
             raise NotWatchingCompetitionException(stub=stub)
 
         for username, tags in tags.items():
-            self.alerts[stub].users[username].tags = tags
+            if username in self.alerts[stub].users:
+                self.alerts[stub].users[username].tags = tags
 
 @click.command()
 @click.option('--port', type=int, required=True)
