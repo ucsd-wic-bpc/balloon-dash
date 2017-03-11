@@ -1,5 +1,10 @@
+Flask==0.12
+Jinja2==2.9.5
+MarkupSafe==1.0
+Werkzeug==0.12
 argparse==1.2.1
 click==6.6
+itsdangerous==0.24
 selenium==2.49.2
 six==1.10.0
 thrift==0.10.0

@@ -16,17 +16,20 @@ else:
 from thrift.transport import TTransport, TSocket, TSSLSocket, THttpClient
 from thrift.protocol.TBinaryProtocol import TBinaryProtocol
 
-from hackerrank_leaderboard import HackerrankLeaderboardServer
-from hackerrank_leaderboard.ttypes import *
+from competition_server_service import CompetitionServer
+from competition_server_service.ttypes import *
 
 if len(sys.argv) <= 1 or sys.argv[1] == '--help':
     print('')
     print('Usage: ' + sys.argv[0] + ' [-h host[:port]] [-u url] [-f[ramed]] [-s[sl]] function [arg1 [arg2...]]')
     print('')
     print('Functions:')
-    print('  void registerLeaderboard(string stub, string username, string password)')
-    print('  LeaderboardDiffList getLeaderboardDiff(string stub, i32 version)')
-    print('  void unregisterLeaderboard(string stub)')
+    print('  void watchCompetition(CompetitionSettings settings)')
+    print('   getUpdatedUserList(string stub)')
+    print('  void ackAlerts(string stub,  acked_alerts)')
+    print('  void updateCategories(string stub,  categories)')
+    print('  void updateTags(string stub,  tags)')
+    print('  bool isWatching(string stub)')
     print('')
     sys.exit(0)
 
@@ -80,26 +83,44 @@ else:
     else:
         transport = TTransport.TBufferedTransport(socket)
 protocol = TBinaryProtocol(transport)
-client = HackerrankLeaderboardServer.Client(protocol)
+client = CompetitionServer.Client(protocol)
 transport.open()
 
-if cmd == 'registerLeaderboard':
-    if len(args) != 3:
-        print('registerLeaderboard requires 3 args')
-        sys.exit(1)
-    pp.pprint(client.registerLeaderboard(args[0], args[1], args[2],))
-
-elif cmd == 'getLeaderboardDiff':
-    if len(args) != 2:
-        print('getLeaderboardDiff requires 2 args')
-        sys.exit(1)
-    pp.pprint(client.getLeaderboardDiff(args[0], eval(args[1]),))
-
-elif cmd == 'unregisterLeaderboard':
+if cmd == 'watchCompetition':
     if len(args) != 1:
-        print('unregisterLeaderboard requires 1 args')
+        print('watchCompetition requires 1 args')
         sys.exit(1)
-    pp.pprint(client.unregisterLeaderboard(args[0],))
+    pp.pprint(client.watchCompetition(eval(args[0]),))
+
+elif cmd == 'getUpdatedUserList':
+    if len(args) != 1:
+        print('getUpdatedUserList requires 1 args')
+        sys.exit(1)
+    pp.pprint(client.getUpdatedUserList(args[0],))
+
+elif cmd == 'ackAlerts':
+    if len(args) != 2:
+        print('ackAlerts requires 2 args')
+        sys.exit(1)
+    pp.pprint(client.ackAlerts(args[0], eval(args[1]),))
+
+elif cmd == 'updateCategories':
+    if len(args) != 2:
+        print('updateCategories requires 2 args')
+        sys.exit(1)
+    pp.pprint(client.updateCategories(args[0], eval(args[1]),))
+
+elif cmd == 'updateTags':
+    if len(args) != 2:
+        print('updateTags requires 2 args')
+        sys.exit(1)
+    pp.pprint(client.updateTags(args[0], eval(args[1]),))
+
+elif cmd == 'isWatching':
+    if len(args) != 1:
+        print('isWatching requires 1 args')
+        sys.exit(1)
+    pp.pprint(client.isWatching(args[0],))
 
 else:
     print('Unrecognized method %s' % cmd)

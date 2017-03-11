@@ -30,7 +30,13 @@ exception InvalidVersionException {
   1: i32 server_latest;
 }
 
+exception StubNotRegisteredException {
+  1: string stub_name;
+}
+
 service HackerrankLeaderboardServer {
-  LeaderboardDiffList getLeaderboardDiff(1: i32 current_version) throws (1: HackerrankProxyNotReadyException notready);
-  HackerrankProxyStatus getProxyStatus();
+  void registerLeaderboard(1: string stub, 2: string username, 3: string password);
+  LeaderboardDiffList getLeaderboardDiff(1: string stub, 2: i32 version) throws (1: HackerrankProxyNotReadyException notready,
+                                                                                 2: StubNotRegisteredException snre);
+  void unregisterLeaderboard(1: string stub) throws (1: StubNotRegisteredException snre);
 }

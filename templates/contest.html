@@ -1,0 +1,131 @@
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.6/css/bootstrap.min.css" integrity="sha384-rwoIResjU2yc3z8GV/NPeZWAv56rSmLldC3R/AZzGRnGxQQKnKkoFVhFQhNUwEyJ" crossorigin="anonymous">
+<style>
+button {
+  width: 150px;
+}
+</style>
+
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.6/js/bootstrap.min.js" integrity="sha384-vBWWzlZJ8ea9aCX4pEW3rVHjgjt7zpkNpZk+02D9phzyeVkE+jo0ieGizqPLForn" crossorigin="anonymous"></script>
+<script type="text/javascript">
+
+
+function makeButtonFromUser(user, button) {
+  button.title = user["username"];
+  if (user["pending_alerts"] > 0) {
+    button.style.background = "red";
+  }
+  else {
+    button.style.background = "lightgreen";
+  }
+
+  var tagString = "";
+  for (var i = 0; i < user["tags"].length; i++) {
+    tagString += "[" + user["tags"][i] + "]";
+  }
+
+  button.onclick = function() {
+    var button = this;
+    var username = button.id;
+    ack_dict = {};
+    ack_dict[username] = user["pending_alerts"];
+
+    var userRequest = new XMLHttpRequest();
+    userRequest.addEventListener("load", function() {
+      button.innerHTML = tagString + " needs " + 0;
+      button.style.background = "lightgreen";
+    });
+    userRequest.open("POST", "/api/{{stub}}");
+    userRequest.send(JSON.stringify(ack_dict));
+  }
+
+  button.innerHTML = tagString + " needs " + user["pending_alerts"];
+  var user_category = user["category"];
+  var existing_button = document.getElementById(user["username"]);
+  if (existing_button.parentNode.id != user_category) {
+    existing_button.parentNode.removeChild(existing_button);
+    var correctDiv = document.getElementById(user_category);
+    correctDiv.appendChild(existing_button);
+  }
+}
+
+function handleGetUsersResponse() {
+  content = JSON.parse(this.responseText);
+
+  if (content["error"] == 1) {
+    document.getElementById("content").innerHTML = "ERROR: " + content["message"];
+    return;
+  }
+
+  categories = content["users"]
+  for (var category in categories) {
+    var catdiv = document.createElement("div");
+    catdiv.id = category;
+
+    var divhead = document.createElement("h1");
+    var divheadcontents = document.createTextNode(category);
+    divhead.appendChild(divheadcontents);
+    catdiv.appendChild(divhead);
+    catdiv.appendChild(document.createElement("br"));
+
+    document.getElementById("content").appendChild(catdiv);
+    document.getElementById("content").appendChild(document.createElement("br"));
+  }
+
+  for (var category in categories) {
+    for (var username in categories[category]) {
+      var userButton = document.createElement("button");
+      userButton.id = username;
+      catdiv.appendChild(userButton);
+      makeButtonFromUser(categories[category][username], userButton);
+    }
+
+  }
+}
+
+var userRequest = new XMLHttpRequest();
+userRequest.addEventListener("load", handleGetUsersResponse);
+userRequest.open("GET", "/api/{{stub}}");
+userRequest.send();
+
+function handleRefresh() {
+  content = JSON.parse(this.responseText);
+
+  if (content["error"] == 1) {
+    return;
+  }
+
+  categories = content["users"];
+  for (var category in categories) {
+    for (var username in categories[category]) {
+      var button = document.getElementById(username);
+
+      if (button == null) {
+      }
+
+      makeButtonFromUser(categories[category][username], button);
+    }
+  }
+}
+
+function refreshPage() {
+  var userRequest = new XMLHttpRequest();
+  userRequest.addEventListener("load", handleRefresh);
+  userRequest.open("GET", "/api/{{stub}}");
+  userRequest.send();
+}
+
+setInterval(refreshPage, 5000);
+
+</script>
+<html>
+<head>
+  <title>Balloon Dash HTTP</title>
+</head>
+<body>
+<div align=center>
+<h1>Balloon-Dash</h1>
+</div>
+<div id="content">
+</div>
+</body>
+</html>

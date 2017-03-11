@@ -16,14 +16,28 @@ from thrift.transport import TTransport
 
 
 class Iface(object):
-    def getLeaderboardDiff(self, current_version):
+    def registerLeaderboard(self, stub, username, password):
         """
         Parameters:
-         - current_version
+         - stub
+         - username
+         - password
         """
         pass
 
-    def getProxyStatus(self):
+    def getLeaderboardDiff(self, stub, version):
+        """
+        Parameters:
+         - stub
+         - version
+        """
+        pass
+
+    def unregisterLeaderboard(self, stub):
+        """
+        Parameters:
+         - stub
+        """
         pass
 
 
@@ -34,18 +48,53 @@ class Client(Iface):
             self._oprot = oprot
         self._seqid = 0
 
-    def getLeaderboardDiff(self, current_version):
+    def registerLeaderboard(self, stub, username, password):
         """
         Parameters:
-         - current_version
+         - stub
+         - username
+         - password
         """
-        self.send_getLeaderboardDiff(current_version)
+        self.send_registerLeaderboard(stub, username, password)
+        self.recv_registerLeaderboard()
+
+    def send_registerLeaderboard(self, stub, username, password):
+        self._oprot.writeMessageBegin('registerLeaderboard', TMessageType.CALL, self._seqid)
+        args = registerLeaderboard_args()
+        args.stub = stub
+        args.username = username
+        args.password = password
+        args.write(self._oprot)
+        self._oprot.writeMessageEnd()
+        self._oprot.trans.flush()
+
+    def recv_registerLeaderboard(self):
+        iprot = self._iprot
+        (fname, mtype, rseqid) = iprot.readMessageBegin()
+        if mtype == TMessageType.EXCEPTION:
+            x = TApplicationException()
+            x.read(iprot)
+            iprot.readMessageEnd()
+            raise x
+        result = registerLeaderboard_result()
+        result.read(iprot)
+        iprot.readMessageEnd()
+        return
+
+    def getLeaderboardDiff(self, stub, version):
+        """
+        Parameters:
+         - stub
+         - version
+        """
+        self.send_getLeaderboardDiff(stub, version)
         return self.recv_getLeaderboardDiff()
 
-    def send_getLeaderboardDiff(self, current_version):
+    def send_getLeaderboardDiff(self, stub, version):
         self._oprot.writeMessageBegin('getLeaderboardDiff', TMessageType.CALL, self._seqid)
         args = getLeaderboardDiff_args()
-        args.current_version = current_version
+        args.stub = stub
+        args.version = version
         args.write(self._oprot)
         self._oprot.writeMessageEnd()
         self._oprot.trans.flush()
@@ -65,20 +114,27 @@ class Client(Iface):
             return result.success
         if result.notready is not None:
             raise result.notready
+        if result.snre is not None:
+            raise result.snre
         raise TApplicationException(TApplicationException.MISSING_RESULT, "getLeaderboardDiff failed: unknown result")
 
-    def getProxyStatus(self):
-        self.send_getProxyStatus()
-        return self.recv_getProxyStatus()
+    def unregisterLeaderboard(self, stub):
+        """
+        Parameters:
+         - stub
+        """
+        self.send_unregisterLeaderboard(stub)
+        self.recv_unregisterLeaderboard()
 
-    def send_getProxyStatus(self):
-        self._oprot.writeMessageBegin('getProxyStatus', TMessageType.CALL, self._seqid)
-        args = getProxyStatus_args()
+    def send_unregisterLeaderboard(self, stub):
+        self._oprot.writeMessageBegin('unregisterLeaderboard', TMessageType.CALL, self._seqid)
+        args = unregisterLeaderboard_args()
+        args.stub = stub
         args.write(self._oprot)
         self._oprot.writeMessageEnd()
         self._oprot.trans.flush()
 
-    def recv_getProxyStatus(self):
+    def recv_unregisterLeaderboard(self):
         iprot = self._iprot
         (fname, mtype, rseqid) = iprot.readMessageBegin()
         if mtype == TMessageType.EXCEPTION:
@@ -86,20 +142,21 @@ class Client(Iface):
             x.read(iprot)
             iprot.readMessageEnd()
             raise x
-        result = getProxyStatus_result()
+        result = unregisterLeaderboard_result()
         result.read(iprot)
         iprot.readMessageEnd()
-        if result.success is not None:
-            return result.success
-        raise TApplicationException(TApplicationException.MISSING_RESULT, "getProxyStatus failed: unknown result")
+        if result.snre is not None:
+            raise result.snre
+        return
 
 
 class Processor(Iface, TProcessor):
     def __init__(self, handler):
         self._handler = handler
         self._processMap = {}
+        self._processMap["registerLeaderboard"] = Processor.process_registerLeaderboard
         self._processMap["getLeaderboardDiff"] = Processor.process_getLeaderboardDiff
-        self._processMap["getProxyStatus"] = Processor.process_getProxyStatus
+        self._processMap["unregisterLeaderboard"] = Processor.process_unregisterLeaderboard
 
     def process(self, iprot, oprot):
         (name, type, seqid) = iprot.readMessageBegin()
@@ -116,19 +173,41 @@ class Processor(Iface, TProcessor):
             self._processMap[name](self, seqid, iprot, oprot)
         return True
 
+    def process_registerLeaderboard(self, seqid, iprot, oprot):
+        args = registerLeaderboard_args()
+        args.read(iprot)
+        iprot.readMessageEnd()
+        result = registerLeaderboard_result()
+        try:
+            self._handler.registerLeaderboard(args.stub, args.username, args.password)
+            msg_type = TMessageType.REPLY
+        except (TTransport.TTransportException, KeyboardInterrupt, SystemExit):
+            raise
+        except Exception as ex:
+            msg_type = TMessageType.EXCEPTION
+            logging.exception(ex)
+            result = TApplicationException(TApplicationException.INTERNAL_ERROR, 'Internal error')
+        oprot.writeMessageBegin("registerLeaderboard", msg_type, seqid)
+        result.write(oprot)
+        oprot.writeMessageEnd()
+        oprot.trans.flush()
+
     def process_getLeaderboardDiff(self, seqid, iprot, oprot):
         args = getLeaderboardDiff_args()
         args.read(iprot)
         iprot.readMessageEnd()
         result = getLeaderboardDiff_result()
         try:
-            result.success = self._handler.getLeaderboardDiff(args.current_version)
+            result.success = self._handler.getLeaderboardDiff(args.stub, args.version)
             msg_type = TMessageType.REPLY
         except (TTransport.TTransportException, KeyboardInterrupt, SystemExit):
             raise
         except HackerrankProxyNotReadyException as notready:
             msg_type = TMessageType.REPLY
             result.notready = notready
+        except StubNotRegisteredException as snre:
+            msg_type = TMessageType.REPLY
+            result.snre = snre
         except Exception as ex:
             msg_type = TMessageType.EXCEPTION
             logging.exception(ex)
@@ -138,21 +217,24 @@ class Processor(Iface, TProcessor):
         oprot.writeMessageEnd()
         oprot.trans.flush()
 
-    def process_getProxyStatus(self, seqid, iprot, oprot):
-        args = getProxyStatus_args()
+    def process_unregisterLeaderboard(self, seqid, iprot, oprot):
+        args = unregisterLeaderboard_args()
         args.read(iprot)
         iprot.readMessageEnd()
-        result = getProxyStatus_result()
+        result = unregisterLeaderboard_result()
         try:
-            result.success = self._handler.getProxyStatus()
+            self._handler.unregisterLeaderboard(args.stub)
             msg_type = TMessageType.REPLY
         except (TTransport.TTransportException, KeyboardInterrupt, SystemExit):
             raise
+        except StubNotRegisteredException as snre:
+            msg_type = TMessageType.REPLY
+            result.snre = snre
         except Exception as ex:
             msg_type = TMessageType.EXCEPTION
             logging.exception(ex)
             result = TApplicationException(TApplicationException.INTERNAL_ERROR, 'Internal error')
-        oprot.writeMessageBegin("getProxyStatus", msg_type, seqid)
+        oprot.writeMessageBegin("unregisterLeaderboard", msg_type, seqid)
         result.write(oprot)
         oprot.writeMessageEnd()
         oprot.trans.flush()
@@ -160,19 +242,25 @@ class Processor(Iface, TProcessor):
 # HELPER FUNCTIONS AND STRUCTURES
 
 
-class getLeaderboardDiff_args(object):
+class registerLeaderboard_args(object):
     """
     Attributes:
-     - current_version
+     - stub
+     - username
+     - password
     """
 
     thrift_spec = (
         None,  # 0
-        (1, TType.I32, 'current_version', None, None, ),  # 1
+        (1, TType.STRING, 'stub', 'UTF8', None, ),  # 1
+        (2, TType.STRING, 'username', 'UTF8', None, ),  # 2
+        (3, TType.STRING, 'password', 'UTF8', None, ),  # 3
     )
 
-    def __init__(self, current_version=None,):
-        self.current_version = current_version
+    def __init__(self, stub=None, username=None, password=None,):
+        self.stub = stub
+        self.username = username
+        self.password = password
 
     def read(self, iprot):
         if iprot._fast_decode is not None and isinstance(iprot.trans, TTransport.CReadableTransport) and self.thrift_spec is not None:
@@ -184,8 +272,136 @@ class getLeaderboardDiff_args(object):
             if ftype == TType.STOP:
                 break
             if fid == 1:
+                if ftype == TType.STRING:
+                    self.stub = iprot.readString().decode('utf-8') if sys.version_info[0] == 2 else iprot.readString()
+                else:
+                    iprot.skip(ftype)
+            elif fid == 2:
+                if ftype == TType.STRING:
+                    self.username = iprot.readString().decode('utf-8') if sys.version_info[0] == 2 else iprot.readString()
+                else:
+                    iprot.skip(ftype)
+            elif fid == 3:
+                if ftype == TType.STRING:
+                    self.password = iprot.readString().decode('utf-8') if sys.version_info[0] == 2 else iprot.readString()
+                else:
+                    iprot.skip(ftype)
+            else:
+                iprot.skip(ftype)
+            iprot.readFieldEnd()
+        iprot.readStructEnd()
+
+    def write(self, oprot):
+        if oprot._fast_encode is not None and self.thrift_spec is not None:
+            oprot.trans.write(oprot._fast_encode(self, (self.__class__, self.thrift_spec)))
+            return
+        oprot.writeStructBegin('registerLeaderboard_args')
+        if self.stub is not None:
+            oprot.writeFieldBegin('stub', TType.STRING, 1)
+            oprot.writeString(self.stub.encode('utf-8') if sys.version_info[0] == 2 else self.stub)
+            oprot.writeFieldEnd()
+        if self.username is not None:
+            oprot.writeFieldBegin('username', TType.STRING, 2)
+            oprot.writeString(self.username.encode('utf-8') if sys.version_info[0] == 2 else self.username)
+            oprot.writeFieldEnd()
+        if self.password is not None:
+            oprot.writeFieldBegin('password', TType.STRING, 3)
+            oprot.writeString(self.password.encode('utf-8') if sys.version_info[0] == 2 else self.password)
+            oprot.writeFieldEnd()
+        oprot.writeFieldStop()
+        oprot.writeStructEnd()
+
+    def validate(self):
+        return
+
+    def __repr__(self):
+        L = ['%s=%r' % (key, value)
+             for key, value in self.__dict__.items()]
+        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+
+    def __eq__(self, other):
+        return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
+
+    def __ne__(self, other):
+        return not (self == other)
+
+
+class registerLeaderboard_result(object):
+
+    thrift_spec = (
+    )
+
+    def read(self, iprot):
+        if iprot._fast_decode is not None and isinstance(iprot.trans, TTransport.CReadableTransport) and self.thrift_spec is not None:
+            iprot._fast_decode(self, iprot, (self.__class__, self.thrift_spec))
+            return
+        iprot.readStructBegin()
+        while True:
+            (fname, ftype, fid) = iprot.readFieldBegin()
+            if ftype == TType.STOP:
+                break
+            else:
+                iprot.skip(ftype)
+            iprot.readFieldEnd()
+        iprot.readStructEnd()
+
+    def write(self, oprot):
+        if oprot._fast_encode is not None and self.thrift_spec is not None:
+            oprot.trans.write(oprot._fast_encode(self, (self.__class__, self.thrift_spec)))
+            return
+        oprot.writeStructBegin('registerLeaderboard_result')
+        oprot.writeFieldStop()
+        oprot.writeStructEnd()
+
+    def validate(self):
+        return
+
+    def __repr__(self):
+        L = ['%s=%r' % (key, value)
+             for key, value in self.__dict__.items()]
+        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+
+    def __eq__(self, other):
+        return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
+
+    def __ne__(self, other):
+        return not (self == other)
+
+
+class getLeaderboardDiff_args(object):
+    """
+    Attributes:
+     - stub
+     - version
+    """
+
+    thrift_spec = (
+        None,  # 0
+        (1, TType.STRING, 'stub', 'UTF8', None, ),  # 1
+        (2, TType.I32, 'version', None, None, ),  # 2
+    )
+
+    def __init__(self, stub=None, version=None,):
+        self.stub = stub
+        self.version = version
+
+    def read(self, iprot):
+        if iprot._fast_decode is not None and isinstance(iprot.trans, TTransport.CReadableTransport) and self.thrift_spec is not None:
+            iprot._fast_decode(self, iprot, (self.__class__, self.thrift_spec))
+            return
+        iprot.readStructBegin()
+        while True:
+            (fname, ftype, fid) = iprot.readFieldBegin()
+            if ftype == TType.STOP:
+                break
+            if fid == 1:
+                if ftype == TType.STRING:
+                    self.stub = iprot.readString().decode('utf-8') if sys.version_info[0] == 2 else iprot.readString()
+                else:
+                    iprot.skip(ftype)
+            elif fid == 2:
                 if ftype == TType.I32:
-                    self.current_version = iprot.readI32()
+                    self.version = iprot.readI32()
                 else:
                     iprot.skip(ftype)
             else:
@@ -198,9 +414,13 @@ class getLeaderboardDiff_args(object):
             oprot.trans.write(oprot._fast_encode(self, (self.__class__, self.thrift_spec)))
             return
         oprot.writeStructBegin('getLeaderboardDiff_args')
-        if self.current_version is not None:
-            oprot.writeFieldBegin('current_version', TType.I32, 1)
-            oprot.writeI32(self.current_version)
+        if self.stub is not None:
+            oprot.writeFieldBegin('stub', TType.STRING, 1)
+            oprot.writeString(self.stub.encode('utf-8') if sys.version_info[0] == 2 else self.stub)
+            oprot.writeFieldEnd()
+        if self.version is not None:
+            oprot.writeFieldBegin('version', TType.I32, 2)
+            oprot.writeI32(self.version)
             oprot.writeFieldEnd()
         oprot.writeFieldStop()
         oprot.writeStructEnd()
@@ -225,16 +445,19 @@ class getLeaderboardDiff_result(object):
     Attributes:
      - success
      - notready
+     - snre
     """
 
     thrift_spec = (
         (0, TType.STRUCT, 'success', (LeaderboardDiffList, LeaderboardDiffList.thrift_spec), None, ),  # 0
         (1, TType.STRUCT, 'notready', (HackerrankProxyNotReadyException, HackerrankProxyNotReadyException.thrift_spec), None, ),  # 1
+        (2, TType.STRUCT, 'snre', (StubNotRegisteredException, StubNotRegisteredException.thrift_spec), None, ),  # 2
     )
 
-    def __init__(self, success=None, notready=None,):
+    def __init__(self, success=None, notready=None, snre=None,):
         self.success = success
         self.notready = notready
+        self.snre = snre
 
     def read(self, iprot):
         if iprot._fast_decode is not None and isinstance(iprot.trans, TTransport.CReadableTransport) and self.thrift_spec is not None:
@@ -257,6 +480,12 @@ class getLeaderboardDiff_result(object):
                     self.notready.read(iprot)
                 else:
                     iprot.skip(ftype)
+            elif fid == 2:
+                if ftype == TType.STRUCT:
+                    self.snre = StubNotRegisteredException()
+                    self.snre.read(iprot)
+                else:
+                    iprot.skip(ftype)
             else:
                 iprot.skip(ftype)
             iprot.readFieldEnd()
@@ -275,6 +504,10 @@ class getLeaderboardDiff_result(object):
             oprot.writeFieldBegin('notready', TType.STRUCT, 1)
             self.notready.write(oprot)
             oprot.writeFieldEnd()
+        if self.snre is not None:
+            oprot.writeFieldBegin('snre', TType.STRUCT, 2)
+            self.snre.write(oprot)
+            oprot.writeFieldEnd()
         oprot.writeFieldStop()
         oprot.writeStructEnd()
 
@@ -293,60 +526,19 @@ class getLeaderboardDiff_result(object):
         return not (self == other)
 
 
-class getProxyStatus_args(object):
-
-    thrift_spec = (
-    )
-
-    def read(self, iprot):
-        if iprot._fast_decode is not None and isinstance(iprot.trans, TTransport.CReadableTransport) and self.thrift_spec is not None:
-            iprot._fast_decode(self, iprot, (self.__class__, self.thrift_spec))
-            return
-        iprot.readStructBegin()
-        while True:
-            (fname, ftype, fid) = iprot.readFieldBegin()
-            if ftype == TType.STOP:
-                break
-            else:
-                iprot.skip(ftype)
-            iprot.readFieldEnd()
-        iprot.readStructEnd()
-
-    def write(self, oprot):
-        if oprot._fast_encode is not None and self.thrift_spec is not None:
-            oprot.trans.write(oprot._fast_encode(self, (self.__class__, self.thrift_spec)))
-            return
-        oprot.writeStructBegin('getProxyStatus_args')
-        oprot.writeFieldStop()
-        oprot.writeStructEnd()
-
-    def validate(self):
-        return
-
-    def __repr__(self):
-        L = ['%s=%r' % (key, value)
-             for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
-
-    def __eq__(self, other):
-        return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
-
-    def __ne__(self, other):
-        return not (self == other)
-
-
-class getProxyStatus_result(object):
+class unregisterLeaderboard_args(object):
     """
     Attributes:
-     - success
+     - stub
     """
 
     thrift_spec = (
-        (0, TType.STRUCT, 'success', (HackerrankProxyStatus, HackerrankProxyStatus.thrift_spec), None, ),  # 0
+        None,  # 0
+        (1, TType.STRING, 'stub', 'UTF8', None, ),  # 1
     )
 
-    def __init__(self, success=None,):
-        self.success = success
+    def __init__(self, stub=None,):
+        self.stub = stub
 
     def read(self, iprot):
         if iprot._fast_decode is not None and isinstance(iprot.trans, TTransport.CReadableTransport) and self.thrift_spec is not None:
@@ -357,10 +549,9 @@ class getProxyStatus_result(object):
             (fname, ftype, fid) = iprot.readFieldBegin()
             if ftype == TType.STOP:
                 break
-            if fid == 0:
-                if ftype == TType.STRUCT:
-                    self.success = HackerrankProxyStatus()
-                    self.success.read(iprot)
+            if fid == 1:
+                if ftype == TType.STRING:
+                    self.stub = iprot.readString().decode('utf-8') if sys.version_info[0] == 2 else iprot.readString()
                 else:
                     iprot.skip(ftype)
             else:
@@ -372,10 +563,71 @@ class getProxyStatus_result(object):
         if oprot._fast_encode is not None and self.thrift_spec is not None:
             oprot.trans.write(oprot._fast_encode(self, (self.__class__, self.thrift_spec)))
             return
-        oprot.writeStructBegin('getProxyStatus_result')
-        if self.success is not None:
-            oprot.writeFieldBegin('success', TType.STRUCT, 0)
-            self.success.write(oprot)
+        oprot.writeStructBegin('unregisterLeaderboard_args')
+        if self.stub is not None:
+            oprot.writeFieldBegin('stub', TType.STRING, 1)
+            oprot.writeString(self.stub.encode('utf-8') if sys.version_info[0] == 2 else self.stub)
+            oprot.writeFieldEnd()
+        oprot.writeFieldStop()
+        oprot.writeStructEnd()
+
+    def validate(self):
+        return
+
+    def __repr__(self):
+        L = ['%s=%r' % (key, value)
+             for key, value in self.__dict__.items()]
+        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+
+    def __eq__(self, other):
+        return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
+
+    def __ne__(self, other):
+        return not (self == other)
+
+
+class unregisterLeaderboard_result(object):
+    """
+    Attributes:
+     - snre
+    """
+
+    thrift_spec = (
+        None,  # 0
+        (1, TType.STRUCT, 'snre', (StubNotRegisteredException, StubNotRegisteredException.thrift_spec), None, ),  # 1
+    )
+
+    def __init__(self, snre=None,):
+        self.snre = snre
+
+    def read(self, iprot):
+        if iprot._fast_decode is not None and isinstance(iprot.trans, TTransport.CReadableTransport) and self.thrift_spec is not None:
+            iprot._fast_decode(self, iprot, (self.__class__, self.thrift_spec))
+            return
+        iprot.readStructBegin()
+        while True:
+            (fname, ftype, fid) = iprot.readFieldBegin()
+            if ftype == TType.STOP:
+                break
+            if fid == 1:
+                if ftype == TType.STRUCT:
+                    self.snre = StubNotRegisteredException()
+                    self.snre.read(iprot)
+                else:
+                    iprot.skip(ftype)
+            else:
+                iprot.skip(ftype)
+            iprot.readFieldEnd()
+        iprot.readStructEnd()
+
+    def write(self, oprot):
+        if oprot._fast_encode is not None and self.thrift_spec is not None:
+            oprot.trans.write(oprot._fast_encode(self, (self.__class__, self.thrift_spec)))
+            return
+        oprot.writeStructBegin('unregisterLeaderboard_result')
+        if self.snre is not None:
+            oprot.writeFieldBegin('snre', TType.STRUCT, 1)
+            self.snre.write(oprot)
             oprot.writeFieldEnd()
         oprot.writeFieldStop()
         oprot.writeStructEnd()

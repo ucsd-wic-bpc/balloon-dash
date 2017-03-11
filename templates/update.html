@@ -1,0 +1,24 @@
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.6/css/bootstrap.min.css" integrity="sha384-rwoIResjU2yc3z8GV/NPeZWAv56rSmLldC3R/AZzGRnGxQQKnKkoFVhFQhNUwEyJ" crossorigin="anonymous">
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.6/js/bootstrap.min.js" integrity="sha384-vBWWzlZJ8ea9aCX4pEW3rVHjgjt7zpkNpZk+02D9phzyeVkE+jo0ieGizqPLForn" crossorigin="anonymous"></script>
+<html>
+<head>
+  <title>Balloon Dash HTTP</title>
+</head>
+<body>
+<div align=center>
+<h1>Balloon-Dash</h1>
+<h2> Update competition tags and categories </h2>
+<form method="post" action="/update/{{stub}}">
+  Categories: <br>
+  <textarea name="categories" cols="80" rows="20">
+    {{categories}}
+  </textarea><br><br>
+  Tags: <br>
+  <textarea name="tags" cols="80" rows="20">
+    {{tags}}
+  </textarea><br><br>
+  <input type="submit" value="Update">
+</form>
+</div>
+</body>
+</html>
